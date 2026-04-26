@@ -1,9 +1,12 @@
+@baseUrl = https://httpbin.org/anything
+@userId = 42
+
 ### Get all users
-GET https://httpbin.org/anything/users
+GET {{baseUrl}}/users
 Accept: application/json
 
 ### Create a new user
-POST https://httpbin.org/anything/users
+POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
@@ -11,7 +14,7 @@ Content-Type: application/json
 }
 
 ### Create a new user (XML)
-POST https://httpbin.org/anything/users
+POST {{baseUrl}}/users
 Content-Type: application/xml
 
 <user>
@@ -19,7 +22,7 @@ Content-Type: application/xml
 </user>
 
 ### Update a user
-PUT https://httpbin.org/anything/users/42
+PUT {{baseUrl}}/users/{{userId}}
 Content-Type: application/json
 
 {
@@ -27,10 +30,10 @@ Content-Type: application/json
 }
 
 ### Delete a user
-DELETE https://httpbin.org/anything/users/42
+DELETE {{baseUrl}}/users/{{userId}}
 
 ### Send a plain text note
-POST https://httpbin.org/anything/notes
+POST {{baseUrl}}/notes
 Content-Type: text/plain
 
 Hello from Zed HTTP Client.

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Debug)]
 pub struct Request {
     pub method: String,
@@ -5,6 +7,21 @@ pub struct Request {
     pub headers: Vec<(String, String)>,
     pub body: String,
 }
+
+const HTTP_METHODS: &[&str] = &[
+    "OPTIONS",
+    "GET",
+    "HEAD",
+    "POST",
+    "PUT",
+    "DELETE",
+    "TRACE",
+    "CONNECT",
+    "PATCH",
+    "LIST",
+    "GRAPHQL",
+    "WEBSOCKET",
+];
 
 pub fn parse_request_at(content: &str, line: usize) -> Result<Request, String> {
     let lines: Vec<&str> = content.lines().collect();
@@ -40,7 +57,11 @@ pub fn parse_request_at(content: &str, line: usize) -> Result<Request, String> {
     let mut i = 0;
     while i < block.len() {
         let trimmed = block[i].trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("//") {
+        if trimmed.is_empty()
+            || trimmed.starts_with('#')
+            || trimmed.starts_with("//")
+            || trimmed.starts_with('@')
+        {
             i += 1;
         } else {
             break;
@@ -77,12 +98,82 @@ pub fn parse_request_at(content: &str, line: usize) -> Result<Request, String> {
 
     let body = block[i..].join("\n").trim().to_string();
 
+    let vars = collect_variable_definitions(content);
+    let url = substitute_variables(&url, &vars);
+    let headers = headers
+        .into_iter()
+        .map(|(name, value)| (name, substitute_variables(&value, &vars)))
+        .collect();
+    let body = substitute_variables(&body, &vars);
+
     Ok(Request {
         method,
         url,
         headers,
         body,
     })
+}
+
+fn collect_variable_definitions(content: &str) -> HashMap<String, String> {
+    let mut vars = HashMap::new();
+    for line in content.lines() {
+        if line.starts_with("###") || is_method_line(line) {
+            break;
+        }
+        let trimmed = line.trim_start();
+        let Some(rest) = trimmed.strip_prefix('@') else {
+            continue;
+        };
+        let Some(eq_pos) = rest.find('=') else {
+            continue;
+        };
+        let name = rest[..eq_pos].trim();
+        let value = rest[eq_pos + 1..].trim();
+        if is_valid_var_name(name) {
+            vars.insert(name.to_string(), value.to_string());
+        }
+    }
+    vars
+}
+
+fn is_method_line(line: &str) -> bool {
+    let first_word = line.split_whitespace().next();
+    matches!(first_word, Some(w) if HTTP_METHODS.contains(&w))
+}
+
+fn is_valid_var_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.chars().all(|c| {
+            c.is_ascii_alphanumeric()
+                || matches!(c, '_' | '.' | '-')
+                || matches!(c, '\u{00A1}'..='\u{FFFF}')
+        })
+}
+
+fn substitute_variables(text: &str, vars: &HashMap<String, String>) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut remaining = text;
+    while let Some(open) = remaining.find("{{") {
+        result.push_str(&remaining[..open]);
+        let after_open = &remaining[open + 2..];
+        if let Some(close) = after_open.find("}}") {
+            let raw_name = &after_open[..close];
+            let name = raw_name.trim();
+            if let Some(value) = vars.get(name) {
+                result.push_str(value);
+            } else {
+                result.push_str("{{");
+                result.push_str(raw_name);
+                result.push_str("}}");
+            }
+            remaining = &after_open[close + 2..];
+        } else {
+            result.push_str(&remaining[open..]);
+            return result;
+        }
+    }
+    result.push_str(remaining);
+    result
 }
 
 #[cfg(test)]
@@ -218,5 +309,90 @@ mod tests {
         let content = "### only separator\n# comment line\n\n";
         let result = parse_request_at(content, 2);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn expands_variable_in_url() {
+        let content = "@host = https://api.example.com\n\nGET {{host}}/users\n";
+        let req = parse_request_at(content, 3).unwrap();
+        assert_eq!(req.url, "https://api.example.com/users");
+    }
+
+    #[test]
+    fn expands_variable_in_header_value() {
+        let content = "@token = abc123\n\nGET /api\nAuthorization: Bearer {{token}}\n";
+        let req = parse_request_at(content, 3).unwrap();
+        assert_eq!(req.headers[0].1, "Bearer abc123");
+    }
+
+    #[test]
+    fn expands_variable_in_body() {
+        let content =
+            "@name = alice\n\nPOST /users\nContent-Type: application/json\n\n{\"name\":\"{{name}}\"}\n";
+        let req = parse_request_at(content, 3).unwrap();
+        assert_eq!(req.body, "{\"name\":\"alice\"}");
+    }
+
+    #[test]
+    fn unknown_variable_left_as_is() {
+        let content = "GET /api/{{notDefined}}\n";
+        let req = parse_request_at(content, 1).unwrap();
+        assert_eq!(req.url, "/api/{{notDefined}}");
+    }
+
+    #[test]
+    fn multiple_variables_in_one_string() {
+        let content =
+            "@host = api.example.com\n@port = 8080\n\nGET https://{{host}}:{{port}}/users\n";
+        let req = parse_request_at(content, 4).unwrap();
+        assert_eq!(req.url, "https://api.example.com:8080/users");
+    }
+
+    #[test]
+    fn variable_below_first_method_line_is_not_collected() {
+        // Lines after the first method line are part of headers/body and must not
+        // be picked up as variable definitions.
+        let content = "GET {{host}}/api\n\n@host = https://api.example.com\n";
+        let req = parse_request_at(content, 1).unwrap();
+        assert_eq!(req.url, "{{host}}/api");
+    }
+
+    #[test]
+    fn variable_after_first_separator_is_not_collected() {
+        // tree-sitter and IntelliJ both treat @var lines after the first ### as body
+        // content. The skip-loop must still avoid them when looking for the method line,
+        // but they must not be collected as variable definitions.
+        let content = "### foo\n@host = api.example.com\nGET {{host}}/api\n";
+        let req = parse_request_at(content, 3).unwrap();
+        assert_eq!(req.method, "GET");
+        assert_eq!(req.url, "{{host}}/api");
+    }
+
+    #[test]
+    fn variable_definition_with_or_without_whitespace() {
+        let content = "@name=value\n@spaced  =  spaced-value\n\nGET /a/{{name}}/{{spaced}}\n";
+        let req = parse_request_at(content, 3).unwrap();
+        assert_eq!(req.url, "/a/value/spaced-value");
+    }
+
+    #[test]
+    fn variable_name_with_dot_and_hyphen() {
+        let content = "@my.var = one\n@host-name = two\n\nGET /{{my.var}}/{{host-name}}\n";
+        let req = parse_request_at(content, 4).unwrap();
+        assert_eq!(req.url, "/one/two");
+    }
+
+    #[test]
+    fn variable_name_with_unicode() {
+        let content = "@ホスト = api.example.com\n\nGET https://{{ホスト}}/api\n";
+        let req = parse_request_at(content, 3).unwrap();
+        assert_eq!(req.url, "https://api.example.com/api");
+    }
+
+    #[test]
+    fn variable_name_with_dollar_is_rejected() {
+        let content = "@$custom = ignored\n\nGET /{{$custom}}\n";
+        let req = parse_request_at(content, 3).unwrap();
+        assert_eq!(req.url, "/{{$custom}}");
     }
 }
