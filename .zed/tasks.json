@@ -1,6 +1,6 @@
 [
   {
-    "label": "$ZED_CUSTOM_method $ZED_CUSTOM_url",
+    "label": "$ZED_CUSTOM_method $ZED_STEM | $ZED_CUSTOM_title",
     "command": "$ZED_WORKTREE_ROOT/httpc/target/debug/httpc",
     "args": [
       "--file",
