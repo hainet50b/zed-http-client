@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 mod parser;
+mod response;
 
 /// Zed HTTP Client — backend CLI that executes requests defined in .http files.
 #[derive(Parser)]
@@ -55,12 +56,35 @@ fn invoke_curl(req: &parser::Request) -> i32 {
     if !req.body.is_empty() {
         cmd.arg("--data-raw").arg(&req.body);
     }
-    cmd.arg("-w").arg(
-        "\nResponse code: %{http_code}; Time: %{time_total}s; Content length: %{size_download} bytes\n",
+
+    let start = std::time::Instant::now();
+    let output = cmd.output().expect("failed to spawn curl");
+    let elapsed = start.elapsed();
+
+    if !output.stderr.is_empty() {
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    let raw = String::from_utf8_lossy(&output.stdout);
+    let resp = response::split_response(&raw);
+    let content_type = response::find_content_type(&resp.headers);
+
+    println!("{}", resp.status_line);
+    for h in &resp.headers {
+        println!("{h}");
+    }
+    println!();
+
+    let pretty = response::pretty(&resp.body, content_type.as_deref());
+    println!("{pretty}");
+    println!();
+
+    println!(
+        "Response code: {}; Time: {:.3}s; Content length: {} bytes",
+        response::parse_status_code(&resp.status_line),
+        elapsed.as_secs_f64(),
+        resp.body.len(),
     );
 
-    cmd.status()
-        .expect("failed to spawn curl")
-        .code()
-        .unwrap_or(1)
+    output.status.code().unwrap_or(1)
 }

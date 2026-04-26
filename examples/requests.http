@@ -37,3 +37,11 @@ POST {{baseUrl}}/notes
 Content-Type: text/plain
 
 Hello from Zed HTTP Client.
+
+### Fetch a minified JSON response
+GET https://catfact.ninja/fact
+Accept: application/json
+
+### Fetch a sample XML document
+GET https://httpbin.org/xml
+Accept: application/xml
