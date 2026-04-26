@@ -4,6 +4,9 @@ use ureq::{Agent, http};
 
 use crate::parser::Request;
 
+const TIMEOUT_CONNECT: Duration = Duration::from_secs(10);
+const TIMEOUT_RECV_RESPONSE: Duration = Duration::from_secs(600);
+
 pub struct Response {
     pub http_version: String,
     pub status_code: u16,
@@ -16,6 +19,8 @@ pub struct Response {
 pub fn send(req: &Request) -> Result<Response, String> {
     let agent: Agent = Agent::config_builder()
         .http_status_as_error(false)
+        .timeout_connect(Some(TIMEOUT_CONNECT))
+        .timeout_recv_response(Some(TIMEOUT_RECV_RESPONSE))
         .build()
         .into();
 
