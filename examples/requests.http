@@ -21,6 +21,12 @@ Content-Type: application/xml
   <name>hainet50b</name>
 </user>
 
+### Create a new user (from file)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+< ./payloads/new-user.json
+
 ### Update a user
 PUT {{baseUrl}}/users/{{userId}}
 Content-Type: application/json

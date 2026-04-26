@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Request {
@@ -6,6 +7,24 @@ pub struct Request {
     pub url: String,
     pub headers: Vec<(String, String)>,
     pub body: String,
+}
+
+impl Request {
+    pub fn resolve_body(&mut self, base_dir: &Path) -> Result<(), String> {
+        if let Some(path_str) = extract_file_ref_path(&self.body) {
+            let resolved: PathBuf = base_dir.join(path_str).components().collect();
+            self.body = std::fs::read_to_string(&resolved)
+                .map_err(|e| format!("failed to read body file {}: {e}", resolved.display()))?;
+        }
+        Ok(())
+    }
+}
+
+fn extract_file_ref_path(body: &str) -> Option<&str> {
+    body.strip_prefix("< ").and_then(|rest| {
+        let first_line = rest.lines().next()?.trim();
+        (!first_line.is_empty()).then_some(first_line)
+    })
 }
 
 const HTTP_METHODS: &[&str] = &[
@@ -389,5 +408,60 @@ mod tests {
         let content = "@$custom = ignored\n\nGET /{{$custom}}\n";
         let req = parse_request_at(content, 3).unwrap();
         assert_eq!(req.url, "/{{$custom}}");
+    }
+
+    #[test]
+    fn extract_file_ref_path_recognizes_relative_path() {
+        assert_eq!(extract_file_ref_path("< ./file.json"), Some("./file.json"));
+    }
+
+    #[test]
+    fn extract_file_ref_path_recognizes_absolute_path() {
+        assert_eq!(
+            extract_file_ref_path("< /tmp/data.json"),
+            Some("/tmp/data.json")
+        );
+    }
+
+    #[test]
+    fn extract_file_ref_path_strips_trailing_whitespace() {
+        assert_eq!(
+            extract_file_ref_path("< ./file.json  "),
+            Some("./file.json")
+        );
+    }
+
+    #[test]
+    fn extract_file_ref_path_takes_first_line_only() {
+        assert_eq!(
+            extract_file_ref_path("< ./file.json\nignored content"),
+            Some("./file.json")
+        );
+    }
+
+    #[test]
+    fn extract_file_ref_path_does_not_match_xml_open_tag() {
+        assert_eq!(extract_file_ref_path("<user>foo</user>"), None);
+    }
+
+    #[test]
+    fn extract_file_ref_path_does_not_match_xml_declaration() {
+        assert_eq!(extract_file_ref_path("<?xml version=\"1.0\"?>"), None);
+    }
+
+    #[test]
+    fn extract_file_ref_path_does_not_match_close_tag() {
+        assert_eq!(extract_file_ref_path("</close>"), None);
+    }
+
+    #[test]
+    fn extract_file_ref_path_returns_none_on_empty_path() {
+        assert_eq!(extract_file_ref_path("< "), None);
+        assert_eq!(extract_file_ref_path("<"), None);
+    }
+
+    #[test]
+    fn extract_file_ref_path_returns_none_on_empty_body() {
+        assert_eq!(extract_file_ref_path(""), None);
     }
 }
