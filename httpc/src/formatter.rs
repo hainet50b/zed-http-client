@@ -1,41 +1,57 @@
-pub struct Response {
-    pub status_line: String,
-    pub headers: Vec<String>,
-    pub body: String,
-}
+use crate::client::Response;
+use crate::parser::Request;
 
-pub fn split_response(raw: &str) -> Response {
-    let (header_section, body) = if let Some(p) = raw.find("\r\n\r\n") {
-        (&raw[..p], &raw[p + 4..])
-    } else if let Some(p) = raw.find("\n\n") {
-        (&raw[..p], &raw[p + 2..])
-    } else {
-        (raw, "")
-    };
-
-    let mut lines = header_section.lines();
-    let status_line = lines.next().unwrap_or("").to_string();
-    let headers = lines.map(String::from).collect();
-
-    Response {
-        status_line,
-        headers,
-        body: body.trim_end().to_string(),
+pub fn print_request(req: &Request) {
+    println!("{} {}", req.method, req.url);
+    for (name, value) in &req.headers {
+        println!("{name}: {value}");
     }
+    if !req.body.is_empty() {
+        println!();
+        println!("{}", req.body);
+    }
+    println!();
 }
 
-pub fn find_content_type(headers: &[String]) -> Option<String> {
-    headers.iter().find_map(|h| {
-        let (name, value) = h.split_once(':')?;
+pub fn print_response(resp: &Response) {
+    if resp.reason_phrase.is_empty() {
+        println!("{} {}", resp.http_version, resp.status_code);
+    } else {
+        println!(
+            "{} {} {}",
+            resp.http_version, resp.status_code, resp.reason_phrase
+        );
+    }
+    for (name, value) in &resp.headers {
+        println!("{name}: {value}");
+    }
+    println!();
+
+    let body_str = String::from_utf8_lossy(&resp.body);
+    let content_type = find_content_type(&resp.headers);
+    let pretty = pretty_body(&body_str, content_type.as_deref());
+    println!("{pretty}");
+    println!();
+
+    println!(
+        "Response code: {}; Time: {}ms; Content length: {} bytes",
+        resp.status_code,
+        resp.elapsed.as_millis(),
+        resp.body.len(),
+    );
+}
+
+fn find_content_type(headers: &[(String, String)]) -> Option<String> {
+    headers.iter().find_map(|(name, value)| {
         if name.eq_ignore_ascii_case("content-type") {
-            Some(value.trim().to_string())
+            Some(value.clone())
         } else {
             None
         }
     })
 }
 
-pub fn pretty(body: &str, content_type: Option<&str>) -> String {
+fn pretty_body(body: &str, content_type: Option<&str>) -> String {
     match content_type {
         Some(ct) if is_json(ct) => pretty_json(body),
         Some(ct) if is_xml(ct) => pretty_xml(body),
@@ -43,13 +59,8 @@ pub fn pretty(body: &str, content_type: Option<&str>) -> String {
     }
 }
 
-pub fn parse_status_code(status_line: &str) -> &str {
-    status_line.split_whitespace().nth(1).unwrap_or("?")
-}
-
 fn is_json(ct: &str) -> bool {
-    ct.starts_with("application/json")
-        || (ct.starts_with("application/") && ct.contains("+json"))
+    ct.starts_with("application/json") || (ct.starts_with("application/") && ct.contains("+json"))
 }
 
 fn is_xml(ct: &str) -> bool {
@@ -97,38 +108,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn split_response_separates_status_headers_body() {
-        let raw = "HTTP/2 200\r\nContent-Type: application/json\r\n\r\n{\"a\":1}\n";
-        let resp = split_response(raw);
-        assert_eq!(resp.status_line, "HTTP/2 200");
-        assert_eq!(
-            resp.headers,
-            vec!["Content-Type: application/json".to_string()]
-        );
-        assert_eq!(resp.body, "{\"a\":1}");
-    }
-
-    #[test]
-    fn split_response_handles_unix_line_endings() {
-        let raw = "HTTP/1.1 200 OK\nContent-Length: 7\n\n{\"a\":1}";
-        let resp = split_response(raw);
-        assert_eq!(resp.status_line, "HTTP/1.1 200 OK");
-        assert_eq!(resp.body, "{\"a\":1}");
-    }
-
-    #[test]
-    fn split_response_with_no_body_section() {
-        let raw = "HTTP/2 204\r\n\r\n";
-        let resp = split_response(raw);
-        assert_eq!(resp.status_line, "HTTP/2 204");
-        assert_eq!(resp.body, "");
-    }
-
-    #[test]
     fn find_content_type_finds_header() {
         let headers = vec![
-            "Date: Sun, 26 Apr 2026 09:00:00 GMT".to_string(),
-            "Content-Type: application/json".to_string(),
+            (
+                "Date".to_string(),
+                "Sun, 26 Apr 2026 09:00:00 GMT".to_string(),
+            ),
+            ("Content-Type".to_string(), "application/json".to_string()),
         ];
         assert_eq!(
             find_content_type(&headers),
@@ -138,7 +124,7 @@ mod tests {
 
     #[test]
     fn find_content_type_is_case_insensitive() {
-        let headers = vec!["content-type: application/json".to_string()];
+        let headers = vec![("content-type".to_string(), "application/json".to_string())];
         assert_eq!(
             find_content_type(&headers),
             Some("application/json".to_string())
@@ -147,7 +133,7 @@ mod tests {
 
     #[test]
     fn find_content_type_returns_none_when_absent() {
-        let headers = vec!["Date: ...".to_string()];
+        let headers = vec![("Date".to_string(), "...".to_string())];
         assert_eq!(find_content_type(&headers), None);
     }
 
@@ -190,11 +176,5 @@ mod tests {
         let output = pretty_xml(input);
         assert!(output.contains('\n'));
         assert!(output.contains("  "));
-    }
-
-    #[test]
-    fn parse_status_code_extracts_numeric_code() {
-        assert_eq!(parse_status_code("HTTP/2 200"), "200");
-        assert_eq!(parse_status_code("HTTP/1.1 404 Not Found"), "404");
     }
 }

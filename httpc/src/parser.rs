@@ -45,8 +45,8 @@ pub fn parse_request_at(content: &str, line: usize) -> Result<Request, String> {
     }
 
     let mut block_end = lines.len();
-    for i in (target_idx + 1)..lines.len() {
-        if lines[i].starts_with("###") {
+    for (i, line) in lines.iter().enumerate().skip(target_idx + 1) {
+        if line.starts_with("###") {
             block_end = i;
             break;
         }
@@ -195,17 +195,13 @@ mod tests {
 
     #[test]
     fn parses_post_with_json_body() {
-        let content =
-            "POST https://example.com/users\nContent-Type: application/json\n\n{\"name\":\"alice\"}\n";
+        let content = "POST https://example.com/users\nContent-Type: application/json\n\n{\"name\":\"alice\"}\n";
         let req = parse_request_at(content, 1).unwrap();
         assert_eq!(req.method, "POST");
         assert_eq!(req.url, "https://example.com/users");
         assert_eq!(
             req.headers,
-            vec![(
-                "Content-Type".to_string(),
-                "application/json".to_string()
-            )]
+            vec![("Content-Type".to_string(), "application/json".to_string())]
         );
         assert_eq!(req.body, "{\"name\":\"alice\"}");
     }
@@ -327,8 +323,7 @@ mod tests {
 
     #[test]
     fn expands_variable_in_body() {
-        let content =
-            "@name = alice\n\nPOST /users\nContent-Type: application/json\n\n{\"name\":\"{{name}}\"}\n";
+        let content = "@name = alice\n\nPOST /users\nContent-Type: application/json\n\n{\"name\":\"{{name}}\"}\n";
         let req = parse_request_at(content, 3).unwrap();
         assert_eq!(req.body, "{\"name\":\"alice\"}");
     }
