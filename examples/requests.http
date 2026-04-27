@@ -27,6 +27,12 @@ Content-Type: application/json
 
 < ./payloads/new-user.json
 
+### Create a new user (from templated file)
+POST {{baseUrl}}/users
+Content-Type: application/json
+
+< ./payloads/templated-user.json
+
 ### Update a user
 PUT {{baseUrl}}/users/{{userId}}
 Content-Type: application/json

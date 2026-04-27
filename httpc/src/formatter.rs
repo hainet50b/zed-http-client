@@ -35,7 +35,11 @@ pub fn print_response(resp: &Response) {
 
     println!(
         "Response code: {}; Time: {}ms; Content length: {} bytes",
-        resp.status_code,
+        if resp.reason_phrase.is_empty() {
+            resp.status_code.to_string()
+        } else {
+            format!("{} ({})", resp.status_code, resp.reason_phrase)
+        },
         resp.elapsed.as_millis(),
         resp.body.len(),
     );

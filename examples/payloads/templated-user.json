@@ -1,0 +1,4 @@
+{
+  "name": "templated",
+  "self_url": "{{baseUrl}}/users/templated"
+}

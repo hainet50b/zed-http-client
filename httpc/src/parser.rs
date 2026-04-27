@@ -9,40 +9,18 @@ pub struct Request {
     pub body: String,
 }
 
-impl Request {
-    pub fn resolve_body(&mut self, base_dir: &Path) -> Result<(), String> {
-        if let Some(path_str) = extract_file_ref_path(&self.body) {
-            let resolved: PathBuf = base_dir.join(path_str).components().collect();
-            self.body = std::fs::read_to_string(&resolved)
-                .map_err(|e| format!("failed to read body file {}: {e}", resolved.display()))?;
-        }
-        Ok(())
-    }
-}
-
-fn extract_file_ref_path(body: &str) -> Option<&str> {
-    body.strip_prefix("< ").and_then(|rest| {
-        let first_line = rest.lines().next()?.trim();
-        (!first_line.is_empty()).then_some(first_line)
-    })
-}
-
 const HTTP_METHODS: &[&str] = &[
-    "OPTIONS",
-    "GET",
-    "HEAD",
-    "POST",
-    "PUT",
-    "DELETE",
-    "TRACE",
-    "CONNECT",
-    "PATCH",
-    "LIST",
-    "GRAPHQL",
-    "WEBSOCKET",
+    "OPTIONS", "GET", "HEAD", "POST", "PUT", "DELETE", "TRACE", "CONNECT", "PATCH",
 ];
 
-pub fn parse_request_at(content: &str, line: usize) -> Result<Request, String> {
+pub fn parse_request_at(file: &Path, line: usize) -> Result<Request, String> {
+    let content = std::fs::read_to_string(file)
+        .map_err(|e| format!("failed to read {}: {e}", file.display()))?;
+    let base_dir = file.parent().unwrap_or(Path::new("."));
+    parse_request_str(&content, line, base_dir)
+}
+
+fn parse_request_str(content: &str, line: usize, base_dir: &Path) -> Result<Request, String> {
     let lines: Vec<&str> = content.lines().collect();
 
     if line < 1 || line > lines.len() {
@@ -94,6 +72,9 @@ pub fn parse_request_at(content: &str, line: usize) -> Result<Request, String> {
     let method_line = block[i];
     let mut parts = method_line.split_whitespace();
     let method = parts.next().ok_or("missing method")?.to_string();
+    if !HTTP_METHODS.contains(&method.as_str()) {
+        return Err(format!("unrecognized HTTP method: {method:?}"));
+    }
     let url = parts.next().ok_or("missing URL")?.to_string();
     i += 1;
 
@@ -124,6 +105,7 @@ pub fn parse_request_at(content: &str, line: usize) -> Result<Request, String> {
         .map(|(name, value)| (name, substitute_variables(&value, &vars)))
         .collect();
     let body = substitute_variables(&body, &vars);
+    let body = resolve_file_ref(body, base_dir, &vars)?;
 
     Ok(Request {
         method,
@@ -195,6 +177,27 @@ fn substitute_variables(text: &str, vars: &HashMap<String, String>) -> String {
     result
 }
 
+fn resolve_file_ref(
+    body: String,
+    base_dir: &Path,
+    vars: &HashMap<String, String>,
+) -> Result<String, String> {
+    let Some(path_str) = extract_file_ref_path(&body) else {
+        return Ok(body);
+    };
+    let resolved: PathBuf = base_dir.join(path_str).components().collect();
+    let content = std::fs::read_to_string(&resolved)
+        .map_err(|e| format!("failed to read body file {}: {e}", resolved.display()))?;
+    Ok(substitute_variables(&content, vars))
+}
+
+fn extract_file_ref_path(body: &str) -> Option<&str> {
+    body.strip_prefix("< ").and_then(|rest| {
+        let first_line = rest.lines().next()?.trim();
+        (!first_line.is_empty()).then_some(first_line)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,7 +205,7 @@ mod tests {
     #[test]
     fn parses_simple_get_request() {
         let content = "GET https://example.com/api\nAccept: application/json\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.method, "GET");
         assert_eq!(req.url, "https://example.com/api");
         assert_eq!(
@@ -215,7 +218,7 @@ mod tests {
     #[test]
     fn parses_post_with_json_body() {
         let content = "POST https://example.com/users\nContent-Type: application/json\n\n{\"name\":\"alice\"}\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.method, "POST");
         assert_eq!(req.url, "https://example.com/users");
         assert_eq!(
@@ -228,14 +231,14 @@ mod tests {
     #[test]
     fn parses_url_with_query_string() {
         let content = "GET /api?role=admin&limit=10\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.url, "/api?role=admin&limit=10");
     }
 
     #[test]
     fn ignores_http_version_after_url() {
         let content = "GET /api HTTP/1.1\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.method, "GET");
         assert_eq!(req.url, "/api");
     }
@@ -243,7 +246,7 @@ mod tests {
     #[test]
     fn handles_no_body() {
         let content = "DELETE /users/42\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.method, "DELETE");
         assert_eq!(req.url, "/users/42");
         assert!(req.headers.is_empty());
@@ -254,7 +257,7 @@ mod tests {
     fn handles_multiline_body() {
         let content =
             "POST /a\nContent-Type: application/xml\n\n<root>\n  <child>value</child>\n</root>\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.body, "<root>\n  <child>value</child>\n</root>");
     }
 
@@ -262,7 +265,7 @@ mod tests {
     fn parses_multiple_headers() {
         let content =
             "GET /api\nAccept: application/json\nAuthorization: Bearer token\nX-Trace-Id: abc\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(
             req.headers,
             vec![
@@ -276,21 +279,21 @@ mod tests {
     #[test]
     fn header_value_can_contain_colon() {
         let content = "GET /api\nContent-Type: application/json; charset=utf-8\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.headers[0].1, "application/json; charset=utf-8");
     }
 
     #[test]
     fn skips_comments_above_method_line() {
         let content = "# this is a comment\n// also a comment\nGET /api\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.method, "GET");
     }
 
     #[test]
     fn parses_request_within_separated_blocks() {
         let content = "### first\nGET /a\n\n### second\nPOST /b\n";
-        let req = parse_request_at(content, 5).unwrap();
+        let req = parse_request_str(content, 5, Path::new(".")).unwrap();
         assert_eq!(req.method, "POST");
         assert_eq!(req.url, "/b");
     }
@@ -299,7 +302,7 @@ mod tests {
     fn resolves_request_when_clicked_on_body_line() {
         let content =
             "POST /users\nContent-Type: application/json\n\n{\n  \"name\": \"alice\"\n}\n";
-        let req = parse_request_at(content, 5).unwrap();
+        let req = parse_request_str(content, 5, Path::new(".")).unwrap();
         assert_eq!(req.method, "POST");
         assert_eq!(req.body, "{\n  \"name\": \"alice\"\n}");
     }
@@ -307,7 +310,7 @@ mod tests {
     #[test]
     fn resolves_request_when_clicked_on_header_line() {
         let content = "GET /api\nAccept: application/json\nX-Custom: value\n";
-        let req = parse_request_at(content, 2).unwrap();
+        let req = parse_request_str(content, 2, Path::new(".")).unwrap();
         assert_eq!(req.method, "GET");
         assert_eq!(req.headers.len(), 2);
     }
@@ -315,42 +318,49 @@ mod tests {
     #[test]
     fn errors_on_out_of_range_line() {
         let content = "GET /api\n";
-        let result = parse_request_at(content, 5);
+        let result = parse_request_str(content, 5, Path::new("."));
         assert!(result.is_err());
     }
 
     #[test]
     fn errors_on_block_without_method_line() {
         let content = "### only separator\n# comment line\n\n";
-        let result = parse_request_at(content, 2);
+        let result = parse_request_str(content, 2, Path::new("."));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn errors_on_unrecognized_method() {
+        let content = "FOOBAR /api\n";
+        let result = parse_request_str(content, 1, Path::new("."));
         assert!(result.is_err());
     }
 
     #[test]
     fn expands_variable_in_url() {
         let content = "@host = https://api.example.com\n\nGET {{host}}/users\n";
-        let req = parse_request_at(content, 3).unwrap();
+        let req = parse_request_str(content, 3, Path::new(".")).unwrap();
         assert_eq!(req.url, "https://api.example.com/users");
     }
 
     #[test]
     fn expands_variable_in_header_value() {
         let content = "@token = abc123\n\nGET /api\nAuthorization: Bearer {{token}}\n";
-        let req = parse_request_at(content, 3).unwrap();
+        let req = parse_request_str(content, 3, Path::new(".")).unwrap();
         assert_eq!(req.headers[0].1, "Bearer abc123");
     }
 
     #[test]
     fn expands_variable_in_body() {
         let content = "@name = alice\n\nPOST /users\nContent-Type: application/json\n\n{\"name\":\"{{name}}\"}\n";
-        let req = parse_request_at(content, 3).unwrap();
+        let req = parse_request_str(content, 3, Path::new(".")).unwrap();
         assert_eq!(req.body, "{\"name\":\"alice\"}");
     }
 
     #[test]
     fn unknown_variable_left_as_is() {
         let content = "GET /api/{{notDefined}}\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.url, "/api/{{notDefined}}");
     }
 
@@ -358,7 +368,7 @@ mod tests {
     fn multiple_variables_in_one_string() {
         let content =
             "@host = api.example.com\n@port = 8080\n\nGET https://{{host}}:{{port}}/users\n";
-        let req = parse_request_at(content, 4).unwrap();
+        let req = parse_request_str(content, 4, Path::new(".")).unwrap();
         assert_eq!(req.url, "https://api.example.com:8080/users");
     }
 
@@ -367,7 +377,7 @@ mod tests {
         // Lines after the first method line are part of headers/body and must not
         // be picked up as variable definitions.
         let content = "GET {{host}}/api\n\n@host = https://api.example.com\n";
-        let req = parse_request_at(content, 1).unwrap();
+        let req = parse_request_str(content, 1, Path::new(".")).unwrap();
         assert_eq!(req.url, "{{host}}/api");
     }
 
@@ -377,7 +387,7 @@ mod tests {
         // content. The skip-loop must still avoid them when looking for the method line,
         // but they must not be collected as variable definitions.
         let content = "### foo\n@host = api.example.com\nGET {{host}}/api\n";
-        let req = parse_request_at(content, 3).unwrap();
+        let req = parse_request_str(content, 3, Path::new(".")).unwrap();
         assert_eq!(req.method, "GET");
         assert_eq!(req.url, "{{host}}/api");
     }
@@ -385,28 +395,28 @@ mod tests {
     #[test]
     fn variable_definition_with_or_without_whitespace() {
         let content = "@name=value\n@spaced  =  spaced-value\n\nGET /a/{{name}}/{{spaced}}\n";
-        let req = parse_request_at(content, 3).unwrap();
+        let req = parse_request_str(content, 3, Path::new(".")).unwrap();
         assert_eq!(req.url, "/a/value/spaced-value");
     }
 
     #[test]
     fn variable_name_with_dot_and_hyphen() {
         let content = "@my.var = one\n@host-name = two\n\nGET /{{my.var}}/{{host-name}}\n";
-        let req = parse_request_at(content, 4).unwrap();
+        let req = parse_request_str(content, 4, Path::new(".")).unwrap();
         assert_eq!(req.url, "/one/two");
     }
 
     #[test]
     fn variable_name_with_unicode() {
         let content = "@ホスト = api.example.com\n\nGET https://{{ホスト}}/api\n";
-        let req = parse_request_at(content, 3).unwrap();
+        let req = parse_request_str(content, 3, Path::new(".")).unwrap();
         assert_eq!(req.url, "https://api.example.com/api");
     }
 
     #[test]
     fn variable_name_with_dollar_is_rejected() {
         let content = "@$custom = ignored\n\nGET /{{$custom}}\n";
-        let req = parse_request_at(content, 3).unwrap();
+        let req = parse_request_str(content, 3, Path::new(".")).unwrap();
         assert_eq!(req.url, "/{{$custom}}");
     }
 
