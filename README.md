@@ -1,13 +1,53 @@
 # Zed HTTP Client
 
-⚠️ This project is under active development.
-
 A Zed extension for `.http` files, inspired by the HTTP Client in IntelliJ IDEA.
+
+> [!NOTE]
+> Initial setup is required before using these features. See [Installation](#installation).
 
 ## Features
 
-- Syntax highlighting for `.http` and `.rest` files
-- Gutter run button on each request block, which executes the request via a task and shows the response in the integrated terminal
+### Run requests from the gutter
+
+Each request gets a ▶ button. Clicking it sends the request and shows the response in the terminal panel.
+
+![Run a request](docs/images/run-request.gif)
+
+### Syntax highlighting
+
+Highlights `.http` and `.rest` files, including JSON and XML in request bodies with proper indentation.
+
+![Syntax highlighting](docs/images/highlighting.gif)
+
+### Variables
+
+Define variables with `@name = value` at the top of the file and reference them with `{{name}}` in subsequent requests.
+
+![Variables](docs/images/variables.gif)
+
+### Body file references
+
+Send a file as the request body with `< ./payload.json`. Variables inside the referenced file are substituted.
+
+![Body file references](docs/images/body-file.gif)
+
+### Response formatting
+
+JSON and XML response bodies are pretty-printed. Each response includes the status line, content length, and elapsed time in milliseconds.
+
+![Response formatting](docs/images/response-formatting.gif)
+
+### Outline panel
+
+All requests in the file appear in Zed's outline panel, named by their `### section title`.
+
+![Outline](docs/images/outline.gif)
+
+### Re-run from task history
+
+Each request becomes a Zed task labeled `{METHOD} requests | {section title}`. Past runs are available from `Task: spawn`.
+
+![Task history](docs/images/task-history.gif)
 
 ## Installation
 
