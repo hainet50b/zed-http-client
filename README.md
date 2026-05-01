@@ -35,8 +35,6 @@ Send a file as the request body with `< ./payload.json`. Variables inside the re
 
 JSON and XML response bodies are pretty-printed. Each response includes the status line, content length, and elapsed time in milliseconds.
 
-![Response formatting](docs/images/response-formatting.gif)
-
 ### Outline panel
 
 All requests in the file appear in Zed's outline panel, named by their `### section title`.
