@@ -53,12 +53,23 @@ To use this extension, complete the following two steps. Due to current Zed exte
 
 ### 1. Install the `httpc` binary
 
-Download the prebuilt binary for your platform from [Releases](https://github.com/hainet50b/http-client/releases) and place it on your `PATH`. `~/.local/bin/` is recommended (no `sudo` required); make sure the directory is on your `PATH`.
+**Linux / macOS**:
 
-```bash
-mkdir -p ~/.local/bin
-tar -xzf httpc-x86_64-unknown-linux-gnu.tar.gz -C ~/.local/bin
+```sh
+curl -sSf https://raw.githubusercontent.com/hainet50b/http-client/main/install.sh | sh
 ```
+
+Installs to `~/.local/bin/httpc`. Ensure `~/.local/bin` is in your `PATH`.
+
+**Windows (PowerShell)**:
+
+```powershell
+irm https://raw.githubusercontent.com/hainet50b/http-client/main/install.ps1 | iex
+```
+
+Installs to `%USERPROFILE%\.httpc\bin\httpc.exe` and adds the directory to your user `PATH`.
+
+Alternatively, download the prebuilt binary from [Releases](https://github.com/hainet50b/http-client/releases) and place it on your `PATH` manually.
 
 ### 2. Register the runnable task
 
