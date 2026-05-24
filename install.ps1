@@ -1,10 +1,10 @@
 #Requires -Version 5
 # Install script for httpc
-# Usage: irm https://raw.githubusercontent.com/hainet50b/http-client/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/hainet50b/zed-http-client/main/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
-$Repo = "hainet50b/http-client"
+$Repo = "hainet50b/zed-http-client"
 $InstallDir = if ($env:HTTPC_INSTALL_DIR) { $env:HTTPC_INSTALL_DIR } else { "$env:USERPROFILE\.httpc\bin" }
 
 $Arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture

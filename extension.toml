@@ -4,7 +4,7 @@ version = "0.1.0"
 schema_version = 1
 authors = ["hainet50b <contact@programacho.com>"]
 description = "Highlights .http files and runs requests via a gutter run button. See the GitHub page for setup and feature demos."
-repository = "https://github.com/hainet50b/http-client"
+repository = "https://github.com/hainet50b/zed-http-client"
 
 [grammars.http]
 repository = "https://github.com/rest-nvim/tree-sitter-http"

@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 # Install script for httpc
-# Usage: curl -sSf https://raw.githubusercontent.com/hainet50b/http-client/main/install.sh | sh
+# Usage: curl -sSf https://raw.githubusercontent.com/hainet50b/zed-http-client/main/install.sh | sh
 
 set -e
 
-REPO="hainet50b/http-client"
+REPO="hainet50b/zed-http-client"
 INSTALL_DIR="${HTTPC_INSTALL_DIR:-$HOME/.local/bin}"
 
 err() {

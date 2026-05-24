@@ -56,7 +56,7 @@ To use this extension, complete the following two steps. Due to current Zed exte
 **Linux / macOS**:
 
 ```sh
-curl -sSf https://raw.githubusercontent.com/hainet50b/http-client/main/install.sh | sh
+curl -sSf https://raw.githubusercontent.com/hainet50b/zed-http-client/main/install.sh | sh
 ```
 
 Installs to `~/.local/bin/httpc`. Ensure `~/.local/bin` is in your `PATH`.
@@ -64,12 +64,12 @@ Installs to `~/.local/bin/httpc`. Ensure `~/.local/bin` is in your `PATH`.
 **Windows (PowerShell)**:
 
 ```powershell
-irm https://raw.githubusercontent.com/hainet50b/http-client/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/hainet50b/zed-http-client/main/install.ps1 | iex
 ```
 
 Installs to `%USERPROFILE%\.httpc\bin\httpc.exe` and adds the directory to your user `PATH`.
 
-Alternatively, download the prebuilt binary from [Releases](https://github.com/hainet50b/http-client/releases) and place it on your `PATH` manually.
+Alternatively, download the prebuilt binary from [Releases](https://github.com/hainet50b/zed-http-client/releases) and place it on your `PATH` manually.
 
 ### 2. Register the runnable task
 
