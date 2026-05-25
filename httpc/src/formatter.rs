@@ -1,10 +1,104 @@
+use std::io::IsTerminal;
+
+use anstyle::{AnsiColor, Color, Effects, Style};
+
 use crate::client::Response;
 use crate::parser::Request;
 
-pub fn print_request(req: &Request) {
-    println!("{} {}", req.method, req.url);
+#[derive(Clone, Copy)]
+pub struct Theme {
+    method_get: Style,
+    method_post: Style,
+    method_put: Style,
+    method_delete: Style,
+    method_patch: Style,
+    method_other: Style,
+    header_name: Style,
+    status_2xx: Style,
+    status_3xx: Style,
+    status_4xx: Style,
+    status_5xx: Style,
+    dim: Style,
+}
+
+impl Theme {
+    pub fn auto() -> Self {
+        if std::env::var_os("NO_COLOR").is_some() || !std::io::stdout().is_terminal() {
+            Self::plain()
+        } else {
+            Self::colored()
+        }
+    }
+
+    fn plain() -> Self {
+        let s = Style::new();
+        Self {
+            method_get: s,
+            method_post: s,
+            method_put: s,
+            method_delete: s,
+            method_patch: s,
+            method_other: s,
+            header_name: s,
+            status_2xx: s,
+            status_3xx: s,
+            status_4xx: s,
+            status_5xx: s,
+            dim: s,
+        }
+    }
+
+    fn colored() -> Self {
+        let bold_fg = |c: AnsiColor| {
+            Style::new()
+                .fg_color(Some(Color::Ansi(c)))
+                .effects(Effects::BOLD)
+        };
+        let fg = |c: AnsiColor| Style::new().fg_color(Some(Color::Ansi(c)));
+        Self {
+            method_get: bold_fg(AnsiColor::Green),
+            method_post: bold_fg(AnsiColor::Yellow),
+            method_put: bold_fg(AnsiColor::Blue),
+            method_delete: bold_fg(AnsiColor::Red),
+            method_patch: bold_fg(AnsiColor::Magenta),
+            method_other: bold_fg(AnsiColor::Cyan),
+            header_name: fg(AnsiColor::Cyan),
+            status_2xx: bold_fg(AnsiColor::Green),
+            status_3xx: bold_fg(AnsiColor::Cyan),
+            status_4xx: bold_fg(AnsiColor::Yellow),
+            status_5xx: bold_fg(AnsiColor::Red),
+            dim: Style::new().effects(Effects::DIMMED),
+        }
+    }
+
+    fn method_style(&self, method: &str) -> Style {
+        match method.to_ascii_uppercase().as_str() {
+            "GET" => self.method_get,
+            "POST" => self.method_post,
+            "PUT" => self.method_put,
+            "DELETE" => self.method_delete,
+            "PATCH" => self.method_patch,
+            _ => self.method_other,
+        }
+    }
+
+    fn status_style(&self, code: u16) -> Style {
+        match code {
+            200..=299 => self.status_2xx,
+            300..=399 => self.status_3xx,
+            400..=499 => self.status_4xx,
+            500..=599 => self.status_5xx,
+            _ => Style::new(),
+        }
+    }
+}
+
+pub fn print_request(req: &Request, theme: &Theme) {
+    let m = theme.method_style(&req.method);
+    println!("{m}{}{m:#} {}", req.method, req.url);
+    let h = theme.header_name;
     for (name, value) in &req.headers {
-        println!("{name}: {value}");
+        println!("{h}{name}{h:#}: {value}");
     }
     if !req.body.is_empty() {
         println!();
@@ -13,17 +107,23 @@ pub fn print_request(req: &Request) {
     println!();
 }
 
-pub fn print_response(resp: &Response) {
+pub fn print_response(resp: &Response, theme: &Theme) {
+    let s = theme.status_style(resp.status_code);
+    let d = theme.dim;
     if resp.reason_phrase.is_empty() {
-        println!("{} {}", resp.http_version, resp.status_code);
+        println!(
+            "{d}{}{d:#} {s}{}{s:#}",
+            resp.http_version, resp.status_code
+        );
     } else {
         println!(
-            "{} {} {}",
+            "{d}{}{d:#} {s}{} {}{s:#}",
             resp.http_version, resp.status_code, resp.reason_phrase
         );
     }
+    let h = theme.header_name;
     for (name, value) in &resp.headers {
-        println!("{name}: {value}");
+        println!("{h}{name}{h:#}: {value}");
     }
     println!();
 
@@ -34,7 +134,7 @@ pub fn print_response(resp: &Response) {
     println!();
 
     println!(
-        "Response code: {}; Time: {}ms; Content length: {} bytes",
+        "{d}Response code: {}; Time: {}ms; Content length: {} bytes{d:#}",
         if resp.reason_phrase.is_empty() {
             resp.status_code.to_string()
         } else {

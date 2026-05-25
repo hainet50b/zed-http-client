@@ -29,10 +29,11 @@ fn run() -> Result<(), String> {
     let args = Args::parse();
 
     let req = parser::parse_request_at(&args.file, args.line)?;
+    let theme = formatter::Theme::auto();
 
-    formatter::print_request(&req);
+    formatter::print_request(&req, &theme);
     let resp = client::send(&req)?;
-    formatter::print_response(&resp);
+    formatter::print_response(&resp, &theme);
 
     Ok(())
 }
