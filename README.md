@@ -19,6 +19,9 @@ Highlights `.http` and `.rest` files, including JSON and XML in request bodies w
 
 ![Syntax highlighting](docs/images/highlighting.gif)
 
+> [!NOTE]
+> XML body highlighting requires a separate XML language extension to be installed (for example, the community `XML` extension). JSON works out of the box because Zed ships with built-in JSON support.
+
 ### Variables
 
 Define variables with `@name = value` at the top of the file and reference them with `{{name}}` in subsequent requests.
