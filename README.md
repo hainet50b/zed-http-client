@@ -6,6 +6,8 @@
 
 A Zed extension for `.http` files, inspired by the HTTP Client in IntelliJ IDEA.
 
+_Feedback, feature requests, and bug reports are all welcome — feel free to drop them in [Issues](https://github.com/hainet50b/zed-http-client/issues)._
+
 > [!NOTE]
 > Initial setup is required before using these features. See [Installation](#installation).
 
