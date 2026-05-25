@@ -111,10 +111,7 @@ pub fn print_response(resp: &Response, theme: &Theme) {
     let s = theme.status_style(resp.status_code);
     let d = theme.dim;
     if resp.reason_phrase.is_empty() {
-        println!(
-            "{d}{}{d:#} {s}{}{s:#}",
-            resp.http_version, resp.status_code
-        );
+        println!("{d}{}{d:#} {s}{}{s:#}", resp.http_version, resp.status_code);
     } else {
         println!(
             "{d}{}{d:#} {s}{} {}{s:#}",
