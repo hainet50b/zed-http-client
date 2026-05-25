@@ -1,5 +1,9 @@
 # Zed HTTP Client
 
+![Build](https://github.com/hainet50b/zed-http-client/actions/workflows/build.yml/badge.svg)
+![Release](https://img.shields.io/github/v/release/hainet50b/zed-http-client)
+![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)
+
 A Zed extension for `.http` files, inspired by the HTTP Client in IntelliJ IDEA.
 
 > [!NOTE]
