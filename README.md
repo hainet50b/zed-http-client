@@ -46,7 +46,7 @@ All requests in the file appear in Zed's outline panel, named by their `### sect
 
 ### Re-run from task history
 
-Each request becomes a Zed task labeled `{METHOD} requests | {section title}`. Past runs are available from `Task: spawn`.
+Each request becomes a Zed task labeled `{METHOD} requests | {section title}`. Past runs are available from `task:spawn`.
 
 ![Task history](docs/images/task-history.gif)
 
