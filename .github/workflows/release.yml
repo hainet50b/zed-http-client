@@ -66,7 +66,7 @@ jobs:
         run: Compress-Archive -Path httpc/target/${{ matrix.target }}/release/httpc.exe -DestinationPath httpc-${{ matrix.target }}.zip
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: httpc-${{ matrix.target }}
           path: httpc-${{ matrix.target }}.${{ matrix.archive }}
@@ -83,7 +83,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
