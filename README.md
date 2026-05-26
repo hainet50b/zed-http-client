@@ -40,9 +40,13 @@ Send a file as the request body with `< ./payload.json`. Variables inside the re
 
 ![Body file references](docs/images/body-file.gif)
 
-### Response formatting
+### Body formatting and highlighting
 
-JSON and XML response bodies are pretty-printed. Each response includes the status line, content length, and elapsed time in milliseconds.
+JSON and XML bodies — both requests and responses — are pretty-printed and syntax-highlighted in the terminal panel. The HTTP method, status code, and header names are also color-coded for easy scanning.
+
+Each response also includes the status line, content length, and elapsed time in milliseconds.
+
+![Body formatting and highlighting](docs/images/body-formatting.png)
 
 ### Outline panel
 
