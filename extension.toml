@@ -1,6 +1,6 @@
 id = "http-client"
 name = "HTTP Client"
-version = "0.1.2"
+version = "0.1.3"
 schema_version = 1
 authors = ["hainet50b <contact@programacho.com>"]
 description = "Highlights .http files and runs requests via a gutter run button. See the GitHub page for setup and feature demos."
