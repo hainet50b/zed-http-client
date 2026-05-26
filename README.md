@@ -100,6 +100,26 @@ Add the following to your global `~/.config/zed/tasks.json` (or per-project `.ze
 
 Once both are in place, click the ▶ button next to any request to execute it.
 
+## Uninstallation
+
+Installing a third-party binary on a fresh machine is reasonable to be cautious about. The full source for the `httpc` runner lives in the [`httpc/`](httpc/) directory of this repository, and uninstalling is just deleting one file or one directory — nothing else is touched on your system.
+
+**Linux / macOS**:
+
+```sh
+rm ~/.local/bin/httpc
+```
+
+**Windows (PowerShell)**:
+
+```powershell
+Remove-Item -Recurse "$env:USERPROFILE\.httpc"
+```
+
+The Windows installer also adds `%USERPROFILE%\.httpc\bin` to your user `PATH`. You can leave the stale entry in place (it's harmless) or remove it from *System Properties → Environment Variables* if you prefer a clean PATH.
+
+To finish removing the extension itself, delete the task entry you added in `tasks.json` and uninstall the extension from Zed's Extensions panel.
+
 ## Related Projects
 
 - [tie304/zed-http](https://github.com/tie304/zed-http) — alternative Zed extension that bridges to the [httpYac](https://httpyac.github.io) CLI.
