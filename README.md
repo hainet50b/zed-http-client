@@ -62,9 +62,19 @@ Each request becomes a Zed task labeled `{METHOD} requests | {section title}`. P
 
 ## Installation
 
-To use this extension, complete the following two steps. Due to current Zed extension API limitations, the runner binary and task definition cannot be shipped with the extension itself.
+This extension isn't published to the Zed extension registry, so it's installed as a dev extension. Complete the three steps below. (Due to current Zed extension API limitations, the runner binary and task definition can't be shipped with the extension itself, so steps 2 and 3 set them up separately.)
 
-### 1. Install the `httpc` binary
+### 1. Install the extension
+
+Clone this repository:
+
+```sh
+git clone https://github.com/hainet50b/zed-http-client.git
+```
+
+In Zed, open the command palette and run **`zed: install dev extension`** (or open the Extensions panel and click **Install Dev Extension**), then select the cloned directory. Zed compiles the bundled grammars and loads the extension.
+
+### 2. Install the `httpc` binary
 
 **Linux / macOS**:
 
@@ -84,7 +94,7 @@ Installs to `%USERPROFILE%\.httpc\bin\httpc.exe` and adds the directory to your 
 
 Alternatively, download the prebuilt binary from [Releases](https://github.com/hainet50b/zed-http-client/releases) and place it on your `PATH` manually.
 
-### 2. Register the runnable task
+### 3. Register the runnable task
 
 Add the following to your global `~/.config/zed/tasks.json` (or per-project `.zed/tasks.json`):
 
@@ -102,7 +112,7 @@ Add the following to your global `~/.config/zed/tasks.json` (or per-project `.ze
 ]
 ```
 
-Once both are in place, click the ▶ button next to any request to execute it.
+Once all three are in place, click the ▶ button next to any request to execute it.
 
 ## Uninstallation
 
@@ -122,7 +132,7 @@ Remove-Item -Recurse "$env:USERPROFILE\.httpc"
 
 The Windows installer also adds `%USERPROFILE%\.httpc\bin` to your user `PATH`. You can leave the stale entry in place (it's harmless) or remove it from *System Properties → Environment Variables* if you prefer a clean PATH.
 
-To finish removing the extension itself, delete the task entry you added in `tasks.json` and uninstall the extension from Zed's Extensions panel.
+To finish removing the extension itself, delete the task entry you added in `tasks.json`, remove the dev extension from Zed's Extensions panel, and delete the cloned repository.
 
 ## Related Projects
 
