@@ -137,6 +137,7 @@ To finish removing the extension itself, delete the task entry you added in `tas
 ## Related Projects
 
 - [tie304/zed-http](https://github.com/tie304/zed-http) — alternative Zed extension that bridges to the [httpYac](https://httpyac.github.io) CLI.
+- [HusuSama/zed-kulala-http](https://github.com/HusuSama/zed-kulala-http) — alternative Zed extension backed by the [Kulala](https://github.com/mistweaverco/kulala.nvim) language server, adding completion alongside request execution.
 
 ## Acknowledgments
 
